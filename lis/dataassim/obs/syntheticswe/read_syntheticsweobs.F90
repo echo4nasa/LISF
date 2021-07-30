@@ -7,6 +7,8 @@
 ! Administrator of the National Aeronautics and Space Administration.
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
+#include "LIS_misc.h"  !es
+#include "LIS_NetCDF_inc.h" !es 
 !BOP
 ! !ROUTINE: read_syntheticsweobs
 !  \label{read_syntheticsweobs}
@@ -22,6 +24,10 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
   use LIS_coreMod
   use LIS_logMod
   use LIS_DAobservationsMod
+
+#if(defined USE_NETCDF3 || defined USE_NETCDF4) 
+  use netcdf !es
+#endif
 
   implicit none
 ! !ARGUMENTS: 
@@ -43,11 +49,15 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
 !EOP
   type(ESMF_Field)    :: sweField
 
+  integer             :: ftn !es 
+  integer             :: c,r !es
   real,    pointer    :: obsl(:)
   integer             :: gid(LIS_rc%obs_ngrid(k))
   integer             :: assimflag(LIS_rc%obs_ngrid(k))
   real, allocatable       :: dummy(:)
 
+  integer             :: snodid !es
+  real                :: snodobs(LIS_rc%obs_lnc(k),LIS_rc%obs_lnr(k)) !es
   character*100       :: sweobsdir
   logical             :: data_update
   logical             :: file_exists
@@ -87,16 +97,43 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
      call ESMF_FieldGet(sweField,localDE=0, farrayPtr=obsl,rc=status)
      call LIS_verify(status)
      
-     open(90, file=trim(name),form='unformatted')
-     do t=1,1
-        if(t==1) then 
-           call LIS_readvar_gridded(90,n,obsl)
-        else 
-           call LIS_readvar_gridded(90,n,dummy)
-        endif
+ !    open(90, file=trim(name),form='unformatted')
+ !    do t=1,1
+ !       if(t==1) then 
+ !          call LIS_readvar_gridded(90,n,obsl)
+ !       else 
+ !          call LIS_readvar_gridded(90,n,dummy)
+ !       endif
+ !    end do
+ !   close(90)
+!! es start
+#if(defined USE_NETCDF3 || defined USE_NETCDF4)
+     write(LIS_logunit,*)  '[INFO] Reading syn data ',name
+
+     call LIS_verify(nf90_open(path=trim(name),mode=NF90_NOWRITE,ncid=ftn),&
+          'Error opening file '//trim(name))
+     call LIS_verify(nf90_inq_varid(ftn,'SWE_tavg',snodid),&
+          'Error nf90_inq_varid: SWE_tavg')
+
+     call LIS_verify(nf90_get_var(ftn,snodid,snodobs,&
+          start=(/LIS_ews_obs_halo_ind(n,LIS_localPet+1),&
+          LIS_nss_obs_halo_ind(n,LIS_localPet+1)/),&
+          count = (/LIS_rc%obs_lnc(k),LIS_rc%obs_lnr(k)/)),&
+          'Error in nf90_get_var')
+     call LIS_verify(nf90_close(ftn))
+
+     do r =1,LIS_rc%obs_lnr(k)
+        do c =1,LIS_rc%obs_lnc(k)
+           if (LIS_obs_domain(n,k)%gindex(c,r) .ne. -1)then
+              obsl(LIS_obs_domain(n,k)%gindex(c,r)) = &
+                   snodobs(c,r)
+           end if
+        end do
      end do
-     close(90)
-     readflag = .false.
+
+#endif
+!! es end
+    readflag = .false.
      
      do t=1,LIS_rc%obs_ngrid(k)
         gid(t) = t
@@ -110,16 +147,18 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
      call ESMF_AttributeSet(OBS_State,"Data Update Status",&
           .true., rc=status)
      call LIS_verify(status)
+    
+    if(LIS_rc%obs_ngrid(k).gt.0) then !es
 
      call ESMF_AttributeSet(sweField,"Grid Number",&
           gid, itemCount=LIS_rc%obs_ngrid(k),rc=status)
      call LIS_verify(status)
-
+   
      call ESMF_AttributeSet(sweField,"Assimilation Flag",&
           assimflag,itemCount=LIS_rc%obs_ngrid(k),rc=status)
      call LIS_verify(status)
-
-     deallocate(dummy)
+   endif
+  !   deallocate(dummy)
   else
      call ESMF_AttributeSet(OBS_State,"Data Update Status",&
           .false., rc=status)
@@ -151,9 +190,62 @@ subroutine synswe_filename(name, ndir, yr, mo,da,hr,mn)
   write(unit=fhr, fmt='(i2.2)') hr
   write(unit=fmn, fmt='(i2.2)') mn  
   
-  name = trim(ndir)//'/'//trim(fyr)//trim(fmo)//trim(fda)//trim(fhr)//&
-       trim(fmn)//'.d01.gs4r'
+!  name = trim(ndir)//'/'//trim(fyr)//trim(fmo)//trim(fda)//trim(fhr)//&
+!       trim(fmn)//'.d01.gs4r'
+
+  name = trim(ndir)//'/'//trim(fyr)//trim(fmo)//'/SimObs_'//&
+       trim(fyr)//trim(fmo)//trim(fda)//trim(fhr)//&
+       trim(fmn)//'.nc'
+
 end subroutine synswe_filename
 
+!BOP
+!
+! !ROUTINE: readobsvar_1dgridded
+! \label{readobsvar_1dgridded}
+!
+! !INTERFACE:
+subroutine readobsvar_1dgridded_swe(ftn,n,k,var)
+! !USES:
+  use LIS_coreMod
+  use LIS_DAobservationsMod
+
+  implicit none
+! !ARGUMENTS:
+  integer              :: ftn
+  integer              :: n
+  integer              :: k
+  real                 :: var(LIS_rc%obs_ngrid(k))
+!
+! !DESCRIPTION:
+!  This routine reads the observation data and subsets to the
+!  local processor's domain, in a 1-d vector formulation.
+!
+!EOP
+
+  real,  allocatable   :: gobs(:,:)
+  integer              :: nc,c1,r1,c,r,gid
+
+  allocate(gobs(LIS_rc%obs_gnc(k),LIS_rc%obs_gnr(k)))
+  read(ftn) gobs
+
+  nc = (LIS_ewe_obs_halo_ind(k,LIS_localPet+1)-&
+       LIS_ews_obs_halo_ind(k,LIS_localPet+1))+1
+
+  do r=LIS_nss_obs_halo_ind(k,LIS_localPet+1),&
+       LIS_nse_obs_halo_ind(k,LIS_localPet+1)
+     do c=LIS_ews_obs_halo_ind(k,LIS_localPet+1),&
+          LIS_ewe_obs_halo_ind(k,LIS_localPet+1)
+        c1 = c-LIS_ews_obs_halo_ind(k,LIS_localPet+1)+1
+        r1 = r-LIS_nss_obs_halo_ind(k,LIS_localPet+1)+1
+        gid = LIS_obs_domain(n,k)%gindex(c1,r1)
+        if(gid.ne.-1) then
+           var(gid) = gobs(c,r)
+        endif
+     enddo
+  enddo
+  deallocate(gobs)
+
+end subroutine readobsvar_1dgridded_swe
 
 
