@@ -71,7 +71,14 @@ subroutine noahmp401_setsnowvars(n, LSM_State)
 
      ! update
      call noahmp401_snow_update(n, t, dsneqv, dsnowh)
-
+!! Eunsang Cho 07/30/2021 ---------------
+     if(noahmp401_struc(n)%noahmp401(t)%sneqv.lt.0.or.&
+          noahmp401_struc(n)%noahmp401(t)%snowh.lt.0) then
+        print*, dsneqv, dsnowh
+        print*, swe(t), snod(t)
+        stop
+     endif
+!! -------------------------------------
   enddo
 end subroutine noahmp401_setsnowvars
 
