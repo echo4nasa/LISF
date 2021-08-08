@@ -25,6 +25,10 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
   use LIS_logMod
   use LIS_DAobservationsMod
 
+  use LIS_mpiMod
+  use LIS_dataAssimMod
+  use LIS_pluginIndices
+  use syntheticsweobs_module
 #if(defined USE_NETCDF3 || defined USE_NETCDF4) 
   use netcdf !es
 #endif
@@ -48,15 +52,19 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
 !
 !EOP
   type(ESMF_Field)    :: sweField
-
+  integer             :: fnd,p  !EC 08/06/2021
   integer             :: ftn !es 
   integer             :: c,r !es
   real,    pointer    :: obsl(:)
   integer             :: gid(LIS_rc%obs_ngrid(k))
   integer             :: assimflag(LIS_rc%obs_ngrid(k))
   real, allocatable       :: dummy(:)
-
+ 
+  logical             :: data_upd_flag_local !EC 08/06/2021
+  logical             :: data_upd_flag(LIS_npes) !EC 08/06/2021
+  logical             :: data_upd !EC 08/06/2021
   integer             :: snodid !es
+  real                :: swe_current(LIS_rc%obs_lnc(k),LIS_rc%obs_lnr(k)) !EC 08/06/2021
   real                :: snodobs(LIS_rc%obs_lnc(k),LIS_rc%obs_lnr(k)) !es
   character*100       :: sweobsdir
   logical             :: data_update
@@ -68,7 +76,7 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
 
   integer             :: t
 
-
+print *, 'read_syntheticswe_code' 
   call ESMF_AttributeGet(OBS_State,"Data Directory",&
        sweobsdir, rc=status)
   call LIS_verify(status)
@@ -86,7 +94,7 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
   else 
      readflag = .false.
   endif
-
+print *, readflag , name
   if (readflag) then 
      allocate(dummy(LIS_rc%obs_ngrid(k)))
      write(LIS_logunit,*)  'Reading syn data ',name
@@ -132,17 +140,45 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
      end do
 
 #endif
-!! es end
+
+!-------------------------------------------------------------------------
+!  Apply LSM-based QC of observations
+!-------------------------------------------------------------------------     
+     call lsmdaqcobsstate(trim(LIS_rc%lsm)//"+"&
+          //trim(LIS_synsweId)//char(0),n, k, OBS_state)
+
+     call LIS_checkForValidObs(n, k,obsl,fnd,swe_current)
+
+     if(fnd.eq.0) then
+        data_upd_flag_local = .false.
+     else
+        data_upd_flag_local = .true.
+     endif
+
+!#if (defined SPMD)
+!     call MPI_ALLGATHER(data_upd_flag_local,1, &
+!          MPI_LOGICAL, data_upd_flag(:),&
+!          1, MPI_LOGICAL, LIS_mpi_comm, status)
+!#endif
+     data_upd = .false.
+     do p=1,LIS_npes
+        data_upd = data_upd.or.data_upd_flag(p)
+     enddo
+
     readflag = .false.
-     
+    
+    if(data_upd) then     
      do t=1,LIS_rc%obs_ngrid(k)
         gid(t) = t
         if(obsl(t).ne.-9999.0) then 
-           assimflag(t) = 1 
+           assimflag(t) = 1
+           fnd = 1 
         else
            assimflag(t) = 0 
         endif
      enddo
+
+print *, 'assimflag', assimflag(t)
 
      call ESMF_AttributeSet(OBS_State,"Data Update Status",&
           .true., rc=status)
@@ -163,7 +199,13 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
      call ESMF_AttributeSet(OBS_State,"Data Update Status",&
           .false., rc=status)
      call LIS_verify(status)
-     return
+     endif
+     write(LIS_logunit,*)  '[INFO] Finished reading syn data ',name
+  else 
+     call ESMF_AttributeSet(OBS_State,"Data Update Status",&
+          .false., rc=status)
+     call LIS_verify(status)   
+  return
   end if
   
   do t=1,LIS_rc%obs_ngrid(k)
@@ -172,6 +214,7 @@ subroutine read_syntheticsweobs(n, k, OBS_State, OBS_Pert_State)
 !        if(obsl(t).gt.200.0 ) obsl(t) = 200.0
      endif
   enddo
+
 
 end subroutine read_syntheticsweobs
 
