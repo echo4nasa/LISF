@@ -43,7 +43,7 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
 !  This subroutine performs any model-based QC of the observation 
 !  prior to data assimilation. Here the snow observations
 !  are flagged when LSM indicates that (1) rain is falling (2)
-!  ground is fully or partially covered with snow. 
+!  ground is covered with vegatation (more than 50%).  
 !  
 !  The arguments are: 
 !  \begin{description}
@@ -64,6 +64,9 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
   real                     :: tv_obs(LIS_rc%obs_ngrid(k))
   real                     :: stc1_obs(LIS_rc%obs_ngrid(k))
   real                     :: vegt_obs(LIS_rc%obs_ngrid(k))
+  real                     :: rainf_obs(LIS_rc%obs_ngrid(k))
+
+print *, 'Reading /da_snow/noahmp401_qc_snowobs'
 
   call ESMF_StateGet(OBS_State,"Observation01",obs_snow_field,rc=status)
   call LIS_verify(status,&
@@ -78,16 +81,43 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
      vegt(t) = LIS_surface(n,1)%tile(t)%vegt
   enddo
 
-  call LIS_convertPatchSpaceToObsSpace(n,k,&       
-       LIS_rc%lsm_index, noahmp401_struc(n)%noahmp401(:)%tv,tv_obs) !tv: vegetation temperature. unit: K 
+  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
+       noahmp401_struc(n)%noahmp401(:)%tv,tv_obs) !tv: vegetation temperature. unit: K 
   call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, &    !fveg: green vegetation fraction. unit: - 
        noahmp401_struc(n)%noahmp401(:)%fveg,fveg_obs)
+!! add rain flag by Eunsang Cho 08/05/2021
+  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
+       noahmp401_struc(n)%noahmp401(:)%prcp,rainf_obs)  ! MN prcp is total precip 
 
   call LIS_convertPatchSpaceToObsSpace(n,k,&
        LIS_rc%lsm_index,stc1,stc1_obs)
   call LIS_convertPatchSpaceToObsSpace(n,k,&
        LIS_rc%lsm_index,vegt,vegt_obs)
 
+!! Eunsang: check for rain -----
+!  do t = 1,LIS_rc%obs_ngrid(k)
+!        if(rainf_obs(t).gt.3E-6) then  
+!           snowobs(t) = LIS_rc%udef
+!           print*, 'rainf ',gid,t,noahmp401_struc(n)%noahmp401(t)%prcp
+!     endif
+!  enddo
 
+  do t=1,LIS_rc%obs_ngrid(k)
+     if(snowobs(t).ne.LIS_rc%udef) then
+        if(fveg_obs(t).gt.0.7) then
+           snowobs(t) = LIS_rc%udef
+        elseif(vegt_obs(t).le.4) then !forest types
+           snowobs(t) = LIS_rc%udef
+!assume that snow will not form at 5 deg. celcius or higher ground temp. 
+       elseif(tv_obs(t).ge.278.15) then
+           snowobs(t) = LIS_rc%udef
+       elseif(stc1_obs(t).ge.278.15) then
+           snowobs(t) = LIS_rc%udef
+        endif
+     endif
+  enddo
+
+!! ---------------------------
 end subroutine noahmp401_qc_snowobs
+
 
