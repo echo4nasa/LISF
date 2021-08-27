@@ -59,12 +59,15 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
   integer                  :: gid
   integer                  :: status
   real                     :: stc1(LIS_rc%npatch(n,LIS_rc%lsm_index))
+  real                     :: stc1_obs(LIS_rc%obs_ngrid(k))
   real                     :: vegt(LIS_rc%npatch(n,LIS_rc%lsm_index))
+  real                     :: vegt_obs(LIS_rc%obs_ngrid(k))
   real                     :: fveg_obs(LIS_rc%obs_ngrid(k))
   real                     :: tv_obs(LIS_rc%obs_ngrid(k))
-  real                     :: stc1_obs(LIS_rc%obs_ngrid(k))
-  real                     :: vegt_obs(LIS_rc%obs_ngrid(k))
-  real                     :: rainf_obs(LIS_rc%obs_ngrid(k))
+  real                     :: snowliq(LIS_rc%npatch(n,LIS_rc%lsm_index))
+  real                     :: snowliq_obs(LIS_rc%obs_ngrid(k))
+  real                     :: isnow_obs(LIS_rc%obs_ngrid(k))
+!  real                     :: rainf_obs(LIS_rc%obs_ngrid(k))
 
 print *, 'Reading /da_snow/noahmp401_qc_snowobs'
 
@@ -78,6 +81,7 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
   do t=1, LIS_rc%npatch(n,LIS_rc%lsm_index)
      !stc1(t) = noahmp401_struc(n)%noahmp401(t)%sstc(1) ! get snow/veg temp.
      stc1(t) = noahmp401_struc(n)%noahmp401(t)%tslb(1) ! get snow/veg temp.
+     snowliq(t) = noahmp401_struc(n)%noahmp401(t)%snowliq(1) ! get snow layer liquid water [mm] 
      vegt(t) = LIS_surface(n,1)%tile(t)%vegt
   enddo
 
@@ -85,10 +89,13 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
        noahmp401_struc(n)%noahmp401(:)%tv,tv_obs) !tv: vegetation temperature. unit: K 
   call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, &    !fveg: green vegetation fraction. unit: - 
        noahmp401_struc(n)%noahmp401(:)%fveg,fveg_obs)
-!! add rain flag by Eunsang Cho 08/05/2021
-  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
-       noahmp401_struc(n)%noahmp401(:)%prcp,rainf_obs)  ! MN prcp is total precip 
-
+!  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, &    !isnow: no. of snow layer.  unit: - 
+!       noahmp401_struc(n)%noahmp401(:)%isnow,isnow_obs) 
+!! add rainf flag by Eunsang Cho 08/05/2021
+!  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
+!       noahmp401_struc(n)%noahmp401(:)%prcp,prcp_obs)  ! prcp: total precip [in], rainf: rainfall rate [out] 
+  call LIS_convertPatchSpaceToObsSpace(n,k,&
+       LIS_rc%lsm_index,snowliq,snowliq_obs)
   call LIS_convertPatchSpaceToObsSpace(n,k,&
        LIS_rc%lsm_index,stc1,stc1_obs)
   call LIS_convertPatchSpaceToObsSpace(n,k,&
@@ -104,14 +111,18 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
 
   do t=1,LIS_rc%obs_ngrid(k)
      if(snowobs(t).ne.LIS_rc%udef) then
-        if(fveg_obs(t).gt.0.7) then
+       if(fveg_obs(t).gt.0.7) then ! green vegetation fraction
            snowobs(t) = LIS_rc%udef
-        elseif(vegt_obs(t).le.4) then !forest types
+         elseif(vegt_obs(t).le.4) then ! forest types
            snowobs(t) = LIS_rc%udef
-!assume that snow will not form at 5 deg. celcius or higher ground temp. 
-       elseif(tv_obs(t).ge.278.15) then
+!assume that snow will not form at 3 deg. celcius or higher soil (stc1) or vegetation (tv) temp. 
+         elseif(tv_obs(t).ge.276.15) then
            snowobs(t) = LIS_rc%udef
-       elseif(stc1_obs(t).ge.278.15) then
+         elseif(stc1_obs(t).ge.276.15) then
+           snowobs(t) = LIS_rc%udef
+        endif
+! if snow layer liquid water [mm] > 0, mask by Eunsang Cho 8/24
+       if(snowliq_obs(t).gt.0) then
            snowobs(t) = LIS_rc%udef
         endif
      endif
