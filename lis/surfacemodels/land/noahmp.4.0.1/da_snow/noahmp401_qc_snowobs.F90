@@ -31,7 +31,8 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
   use LIS_constantsMod, only : LIS_CONST_TKFRZ
   use LIS_DAobservationsMod
   use noahmp401_lsmMod
-
+  use syntheticsweobs_module  ! EC 10/01/2021
+  
   implicit none
 ! !ARGUMENTS: 
   integer, intent(in)      :: n
@@ -56,6 +57,7 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
 
   real, pointer            :: snowobs(:)
   integer                  :: t
+  integer                  :: lwct
   integer                  :: gid
   integer                  :: status
   real                     :: stc1(LIS_rc%npatch(n,LIS_rc%lsm_index))
@@ -66,7 +68,8 @@ subroutine noahmp401_qc_snowobs(n,k,OBS_State)
   real                     :: tv_obs(LIS_rc%obs_ngrid(k))
   real                     :: snowliq(LIS_rc%npatch(n,LIS_rc%lsm_index))
   real                     :: snowliq_obs(LIS_rc%obs_ngrid(k))
-  real                     :: isnow_obs(LIS_rc%obs_ngrid(k))
+  real                     :: sneqv(LIS_rc%npatch(n,LIS_rc%lsm_index))
+  real                     :: sneqv_obs(LIS_rc%obs_ngrid(k))
 !  real                     :: rainf_obs(LIS_rc%obs_ngrid(k))
 
 print *, 'Reading /da_snow/noahmp401_qc_snowobs'
@@ -77,20 +80,24 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
   call ESMF_FieldGet(obs_snow_field,localDE=0,farrayPtr=snowobs,rc=status)
   call LIS_verify(status,&
        "ESMF_FieldGet failed in noahmp401_qc_snowobs")
-  
+  !! EC 10/01/2021
+  call ESMF_AttributeGet(OBS_State,"Liquid Water Content onoff",& !EC 10/01/2021
+       lwct, rc=status)
+  !! EDIT END !!
+
+
   do t=1, LIS_rc%npatch(n,LIS_rc%lsm_index)
      !stc1(t) = noahmp401_struc(n)%noahmp401(t)%sstc(1) ! get snow/veg temp.
      stc1(t) = noahmp401_struc(n)%noahmp401(t)%tslb(1) ! get snow/veg temp.
      snowliq(t) = noahmp401_struc(n)%noahmp401(t)%snowliq(1) ! get snow layer liquid water [mm] 
      vegt(t) = LIS_surface(n,1)%tile(t)%vegt
+     sneqv(t) = noahmp401_struc(n)%noahmp401(t)%sneqv ! get snow water equivalent [mm] 
   enddo
 
   call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
        noahmp401_struc(n)%noahmp401(:)%tv,tv_obs) !tv: vegetation temperature. unit: K 
   call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, &    !fveg: green vegetation fraction. unit: - 
-       noahmp401_struc(n)%noahmp401(:)%fveg,fveg_obs)
-!  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, &    !isnow: no. of snow layer.  unit: - 
-!       noahmp401_struc(n)%noahmp401(:)%isnow,isnow_obs) 
+       noahmp401_struc(n)%noahmp401(:)%fveg,fveg_obs) 
 !! add rainf flag by Eunsang Cho 08/05/2021
 !  call LIS_convertPatchSpaceToObsSpace(n,k,LIS_rc%lsm_index, & 
 !       noahmp401_struc(n)%noahmp401(:)%prcp,prcp_obs)  ! prcp: total precip [in], rainf: rainfall rate [out] 
@@ -100,7 +107,8 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
        LIS_rc%lsm_index,stc1,stc1_obs)
   call LIS_convertPatchSpaceToObsSpace(n,k,&
        LIS_rc%lsm_index,vegt,vegt_obs)
-
+  call LIS_convertPatchSpaceToObsSpace(n,k,&
+       LIS_rc%lsm_index,sneqv,sneqv_obs)
 !! Eunsang: check for rain -----
 !  do t = 1,LIS_rc%obs_ngrid(k)
 !        if(rainf_obs(t).gt.3E-6) then  
@@ -111,18 +119,24 @@ print *, 'Reading /da_snow/noahmp401_qc_snowobs'
 
   do t=1,LIS_rc%obs_ngrid(k)
      if(snowobs(t).ne.LIS_rc%udef) then
-       if(fveg_obs(t).gt.0.7) then ! green vegetation fraction
-           snowobs(t) = LIS_rc%udef
-         elseif(vegt_obs(t).le.4) then ! forest types
-           snowobs(t) = LIS_rc%udef
+      ! if(fveg_obs(t).gt.0.7) then ! green vegetation fraction
+      !     snowobs(t) = LIS_rc%udef
+      !   elseif(vegt_obs(t).le.4) then ! forest types
+      !     snowobs(t) = LIS_rc%udef
 !assume that snow will not form at 3 deg. celcius or higher soil (stc1) or vegetation (tv) temp. 
-         elseif(tv_obs(t).ge.276.15) then
-           snowobs(t) = LIS_rc%udef
-         elseif(stc1_obs(t).ge.276.15) then
-           snowobs(t) = LIS_rc%udef
-        endif
-! if snow layer liquid water [mm] > 0, mask by Eunsang Cho 8/24
+      !   if(tv_obs(t).ge.276.15) then
+      !     snowobs(t) = LIS_rc%udef
+      !   elseif(stc1_obs(t).ge.276.15) then
+      !     snowobs(t) = LIS_rc%udef
+      !  endif
+! if snow layer liquid water [mm] > 0, mask out Eunsang Cho 8/24
+     if(lwct.eq.1) then
        if(snowliq_obs(t).gt.0) then
+           snowobs(t) = LIS_rc%udef
+      endif
+     endif
+! if snow obs is -9999.0, mask out
+       if(sneqv_obs(t).eq.-9999.0) then
            snowobs(t) = LIS_rc%udef
         endif
      endif
