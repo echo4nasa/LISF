@@ -1,9 +1,9 @@
 !-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
 ! NASA Goddard Space Flight Center
 ! Land Information System Framework (LISF)
-! Version 7.4
+! Version 7.3
 !
-! Copyright (c) 2022 United States Government as represented by the
+! Copyright (c) 2020 United States Government as represented by the
 ! Administrator of the National Aeronautics and Space Administration.
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
@@ -71,7 +71,14 @@ subroutine noahmp401_setsnowvars(n, LSM_State)
 
      ! update
      call noahmp401_snow_update(n, t, dsneqv, dsnowh)
-
+!! Eunsang Cho 07/30/2021 ---------------
+     if(noahmp401_struc(n)%noahmp401(t)%sneqv.lt.0.or.&
+          noahmp401_struc(n)%noahmp401(t)%snowh.lt.0) then
+        print*, dsneqv, dsnowh
+        print*, swe(t), snod(t)
+        stop
+     endif
+!! -------------------------------------
   enddo
 end subroutine noahmp401_setsnowvars
 
