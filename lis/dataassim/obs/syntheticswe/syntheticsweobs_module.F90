@@ -1,9 +1,9 @@
 !-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
 ! NASA Goddard Space Flight Center
 ! Land Information System Framework (LISF)
-! Version 7.4
+! Version 7.3
 !
-! Copyright (c) 2022 United States Government as represented by the
+! Copyright (c) 2020 United States Government as represented by the
 ! Administrator of the National Aeronautics and Space Administration.
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
@@ -22,7 +22,6 @@
 module syntheticsweobs_module
 ! !USES: 
   use ESMF
-  use LIS_constantsMod, only : LIS_CONST_PATH_LEN
 !EOP
   implicit none
   PRIVATE
@@ -64,13 +63,17 @@ contains
 !EOP
     integer                ::  n 
     integer                ::  ftn
+    integer                ::  tcft !EC 10/01/2021
+    integer                ::  deept !EC 10/01/2021
+    integer                ::  shallowt ! EC 10/01/2021
+    integer                ::  lwct ! EC 10/01/2021
     integer                ::  i
     integer                ::  status
     type(ESMF_Field)       ::  obsField(LIS_rc%nnest)
     type(ESMF_ArraySpec)   ::  intarrspec, realarrspec
     type(ESMF_Field)       ::  pertField(LIS_rc%nnest)
     type(ESMF_ArraySpec)   ::  pertArrSpec
-    character(len=LIS_CONST_PATH_LEN) ::  synsweobsdir
+    character*100          ::  synsweobsdir
     character*100          ::  temp
     real, allocatable          :: ssdev(:)
     character*1            ::  vid(2)
@@ -102,7 +105,55 @@ contains
             synsweobsdir, rc=status)
        call LIS_verify(status)
     enddo
+! EC 10/01/2021 !!
+ ! 1. TCF
+    call ESMF_ConfigFindLabel(LIS_config,"Tree Cover Fraction threshold:",&
+         rc=status)
+    do n=1,LIS_rc%nnest
+       call ESMF_ConfigGetAttribute(LIS_config,tcft,&
+            rc=status)
+       call LIS_verify(status)
+       call ESMF_AttributeSet(OBS_State(n),"Tree Cover Fraction threshold",&
+            tcft, rc=status)
+       call LIS_verify(status)
+    enddo
 
+ ! 2. Deep SWE 
+     call ESMF_ConfigFindLabel(LIS_config,"Deep SWE threshold:",&
+         rc=status)
+    do n=1,LIS_rc%nnest
+       call ESMF_ConfigGetAttribute(LIS_config,deept,&
+            rc=status)
+       call LIS_verify(status)
+       call ESMF_AttributeSet(OBS_State(n),"Deep SWE threshold",&
+            deept, rc=status)
+       call LIS_verify(status)
+    enddo
+
+ ! 3. Shallow SWE 
+     call ESMF_ConfigFindLabel(LIS_config,"Shallow SWE threshold:",&
+         rc=status)
+    do n=1,LIS_rc%nnest
+       call ESMF_ConfigGetAttribute(LIS_config,shallowt,&
+            rc=status)
+       call LIS_verify(status)
+       call ESMF_AttributeSet(OBS_State(n),"Shallow SWE threshold",&
+            shallowt, rc=status)
+       call LIS_verify(status)
+    enddo
+ !. 4. Liquid Water Content 
+  call ESMF_ConfigFindLabel(LIS_config,"Liquid Water Content onoff:",&
+         rc=status)
+    do n=1,LIS_rc%nnest
+       call ESMF_ConfigGetAttribute(LIS_config,lwct,&
+            rc=status)
+       call LIS_verify(status)
+       call ESMF_AttributeSet(OBS_State(n),"Liquid Water Content onoff",&
+            lwct, rc=status)
+       call LIS_verify(status)
+    enddo
+
+!! Edit done !!
     do n=1,LIS_rc%nnest
        call ESMF_AttributeSet(OBS_State(n),"Data Update Status",&
             .false., rc=status)
