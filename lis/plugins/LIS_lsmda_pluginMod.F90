@@ -1,9 +1,9 @@
 !-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
 ! NASA Goddard Space Flight Center
 ! Land Information System Framework (LISF)
-! Version 7.4
+! Version 7.3
 !
-! Copyright (c) 2022 United States Government as represented by the
+! Copyright (c) 2020 United States Government as represented by the
 ! Administrator of the National Aeronautics and Space Administration.
 ! All Rights Reserved.
 !-------------------------END NOTICE -- DO NOT EDIT-----------------------
@@ -476,15 +476,15 @@ subroutine LIS_lsmda_plugin
    external NoahMP401_descale_soilm
    external NoahMP401_updatesoilm
 
-   external NoahMP401_getsnowvars         
-   external NoahMP401_setsnowvars              
-   external NoahMP401_getsnowpred
-   external NoahMP401_getswepred
-   external NoahMP401_qcsnow
-   external NoahMP401_qc_snowobs
-   external NoahMP401_scale_snow
-   external NoahMP401_descale_snow
-   external NoahMP401_updatesnowvars
+   external noahmp401_getsnowvars         
+   external noahmp401_setsnowvars              
+   external noahmp401_getsnowpred
+   external noahmp401_getswepred
+   external noahmp401_qcsnow
+   external noahmp401_qc_snowobs
+   external noahmp401_scale_snow
+   external noahmp401_descale_snow
+   external noahmp401_updatesnowvars
 
    external noahmp401_getvegvars
    external noahmp401_setvegvars
@@ -494,7 +494,6 @@ subroutine LIS_lsmda_plugin
    external noahmp401_qc_LAIobs
    external noahmp401_scale_veg
    external noahmp401_descale_veg
-   external noahmp401_veg_DAlog
 
 !BL:NOAHMP4.0.1 TWS
    external noahmp401_gettws
@@ -534,6 +533,7 @@ subroutine LIS_lsmda_plugin
 #endif
 
 #endif
+
 
 #if ( defined SM_CLSM_F2_5 )
 ! CLSM-F2.5 soil moisture
@@ -2577,25 +2577,6 @@ subroutine LIS_lsmda_plugin
         trim(LIS_SMOSNRTNNL2smobsId )//char(0),NoahMP401_updatesoilm)
 
    call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_dasoilm_init)
-   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_getsoilm)
-   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_setsoilm)
-   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_getsmpred)
-   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_qcsoilm)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_qc_soilmobs)
-   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_scale_soilm)
-   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_descale_soilm)
-   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_THySMId)//char(0),NoahMP401_updatesoilm)
-   
-   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_synsndId)//char(0),noahmp401_dasnow_init)
    call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_synsndId)//char(0),noahmp401_getsnowvars)
@@ -2616,29 +2597,6 @@ subroutine LIS_lsmda_plugin
    call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_synsndId)//char(0),noahmp401_qc_snowobs)
 
-#if ( defined DA_OBS_WUSUCLA )
-   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_dasnow_init)
-   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_getsnowvars)
-   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_setsnowvars)
-   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_getsnowpred)
-   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_qcsnow)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_qc_snowobs) 
-   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_scale_snow)
-   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_descale_snow)
-   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_updatesnowvars)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_wusUCLAobsId)//char(0),noahmp401_qc_snowobs)
-#endif
-   
 !BL:Noahmp401 TWS 
    call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_GRACEtwsobsId)//char(0),noahmp401_datws_init)
@@ -2699,31 +2657,6 @@ subroutine LIS_lsmda_plugin
         trim(LIS_MCD15A2HlaiobsId)//char(0),noahmp401_scale_veg)
    call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_MCD15A2HlaiobsId)//char(0),noahmp401_descale_veg)
-   call registerlsmdadiagnosevars(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_MCD15A2HlaiobsId)//char(0),noahmp401_veg_DAlog)
-
-#if ( defined DA_OBS_GCOMW_AMSR2L3SND )
-   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),noahmp401_dasnow_init)
-   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_getsnowvars)
-   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_setsnowvars)
-   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_getsnowpred)
-   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_qcsnow)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_qc_snowobs)
-   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_scale_snow)
-   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_descale_snow)
-   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_updatesnowvars)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_GCOMW_AMSR2L3sndobsId)//char(0),NoahMP401_qc_snowobs)
-#endif
 
 ! Yeosang Yoon, SNODEP DA
 #if ( defined DA_OBS_SNODEP )
@@ -2750,6 +2683,33 @@ subroutine LIS_lsmda_plugin
         trim(LIS_snodepobsId)//char(0),noahmp401_descale_snodep)
 #endif
 
+
+! Eunsang Cho, Synthetic SWE DA 
+#if ( defined DA_OBS_SYNTHETICSNOW )
+   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_dasnow_init)
+   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_getsnowvars)
+   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_setsnowvars)
+   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_getswepred)
+   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_qcsnow)
+   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_qc_snowobs)
+   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_scale_snow)
+   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_descale_snow)
+   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_updatesnowvars)
+   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
+        trim(LIS_synsweId)//char(0),noahmp401_qc_snowobs)
+#endif
+
+
+
 ! Yeosang Yoon, USAFSI DA
 #if ( defined DA_OBS_USAFSI )
 ! DA + usafsi wirings
@@ -2774,6 +2734,7 @@ subroutine LIS_lsmda_plugin
    call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_usafsiobsId)//char(0),noahmp401_descale_usafsi)
 #endif
+#endif
 
 #if ( defined DA_OBS_ASO_SWE)
    call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
@@ -2797,59 +2758,6 @@ subroutine LIS_lsmda_plugin
    call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
         trim(LIS_ASOsweobsId)//char(0),noahmp401_qc_snowobs)
 
-#endif
-
-! Melissa Wrzesien (MLW)
-! NoahMP401 SNODAS snow depth
-#if ( defined DA_OBS_SNODAS)
-   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),noahmp401_dasnow_init)
-   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_getsnowvars)
-   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_setsnowvars)
-   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_getsnowpred)
-   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_qcsnow)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_qc_snowobs)
-   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_scale_snow)
-   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_descale_snow)
-   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_updatesnowvars)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_SNODASobsId)//char(0),NoahMP401_qc_snowobs)
-#endif
-
-! Melissa Wrzesien (MLW)
-! NoahMP401 ANSA snow depth
-#if ( defined DA_OBS_ANSA_SNWD)
-   call registerlsmdainit(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_dasnow_init)
-   call registerlsmdagetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_getsnowvars)
-   call registerlsmdasetstatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_setsnowvars)
-   call registerlsmdagetobspred(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_getsnowpred)
-   call registerlsmdaqcstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_qcsnow)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_qc_snowobs)
-   call registerlsmdascalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_scale_snow)
-   call registerlsmdadescalestatevar(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_descale_snow)
-   call registerlsmdaupdatestate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_updatesnowvars)
-   call registerlsmdaqcobsstate(trim(LIS_noahmp401Id)//"+"//&
-        trim(LIS_ANSASNWDsnowobsId)//char(0),noahmp401_qc_snowobs)
-#endif
- 
-! end NoahMP.4.0.1
 #endif
 
 
